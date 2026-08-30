@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE beállítások
+.vscode/
+.idea/
+
+# Személyes edzésadat - ne kerüljön fel a GitHubra
+training.json
