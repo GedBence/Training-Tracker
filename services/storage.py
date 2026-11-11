@@ -1,8 +1,28 @@
 import json
+from pathlib import Path
+import os
+import tempfile
 
 from models.training import Training
+from models.sport import Sport
 
-FILE_NAME = "training.json"
+FILE_NAME = Path(__file__).resolve().parents[1] / "training.json"
+
+
+def write_json_safely(path, data):
+    """Csak teljes, sikeres írás után cseréljük le a régi mentést."""
+    content = json.dumps(data, ensure_ascii=False, indent=4)
+    path = Path(path)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+                                         delete=False) as file:
+            temporary = Path(file.name)
+            file.write(content)
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
 
 def save_trainings(trainings):
 
@@ -12,8 +32,7 @@ def save_trainings(trainings):
 
         training_data= {
             "date": training.date,
-            "sport": training.sport,
-            "training_type": training.training_type,
+            "sport": str(training.sport),
             "duration": training.duration,
             "focus": training.focus,
             "intensity": training.intensity,
@@ -23,8 +42,7 @@ def save_trainings(trainings):
 
         data.append(training_data)
 
-    with open(FILE_NAME, "w", encoding="UTF-8") as file:
-        json.dump(data, file, ensure_ascii=False, indent=4)
+    write_json_safely(FILE_NAME, data)
 
 def load_trainings():
 
@@ -36,13 +54,17 @@ def load_trainings():
 
         return []
 
+    except json.JSONDecodeError as error:
+        raise ValueError(f"Sérült mentési fájl: {FILE_NAME}. Javítsd vagy állítsd vissza biztonsági másolatból; az eredeti fájlt nem írtuk felül.") from error
+
     trainings = []
 
     for training_data in data:
+        sport = Sport(training_data.get("sport", "Muay Thai"))
+
         training = Training(
             training_data["date"],
-            training_data.get("sport", "Muay Thai"),
-            training_data["training_type"],
+            sport,
             training_data["duration"],
             training_data["focus"],
             training_data["intensity"],

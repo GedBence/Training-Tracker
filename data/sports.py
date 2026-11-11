@@ -51,7 +51,7 @@ def choose_sport():
     return SPORTS.get(choice, "Egyéb")
 
 def ask_sport_details(sport):
-    questions = SPORT_QUESTIONS.get(sport, [])
+    questions = SPORT_QUESTIONS.get(str(sport), [])
 
     details = {}
 
@@ -60,13 +60,22 @@ def ask_sport_details(sport):
 
     for question in questions:
 
-        answer = input(question["question"])
-
-        if question["type"] == int:
-            answer = int(answer)
-
-        elif question["type"] == float:
-            answer = float(answer.replace(",", "."))
+        while True:
+            answer = input(question["question"]).strip()
+            try:
+                if question["type"] == int:
+                    answer = int(answer)
+                elif question["type"] == float:
+                    answer = float(answer.replace(",", "."))
+                if question["type"] in (int, float):
+                    import math
+                    if not math.isfinite(answer) or answer < 0:
+                        raise ValueError
+                if question["key"] == "sparring" and answer.lower() not in ("i", "n"):
+                    raise ValueError
+                break
+            except ValueError:
+                print("Érvénytelen érték, kérlek add meg újra (nemnegatív szám, illetve i/n)!")
 
         details[question["key"]] = answer
 

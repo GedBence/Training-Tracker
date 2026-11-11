@@ -10,6 +10,7 @@ from services.exercise_storage import load_custom_exercises
 
 
 def get_exercise_pools(sport):
+    sport = str(sport)
     pools = {}
 
     base_pools = EXERCISE_POOLS.get(sport, {})
@@ -18,14 +19,14 @@ def get_exercise_pools(sport):
         pools[focus] = exercises.copy()
 
     custom_exercises = load_custom_exercises()
-    custom_pools = custom_exercises.get(sport, ())
+    custom_pools = custom_exercises.get(sport, {})
 
     for focus, exercises in custom_pools.items():
         if focus not in pools:
             pools[focus] = []
 
         for exercise in exercises:
-            if exercise not in  pools[focus]:
+            if exercise not in pools[focus]:
                 pools[focus].append(exercise)
 
     return pools
@@ -76,9 +77,9 @@ def generate_training_plan():
 
     sport = choose_sport()
 
-    pools = EXERCISE_POOLS.get(sport)
+    pools = {focus: drills for focus, drills in get_exercise_pools(sport).items() if drills}
 
-    if pools is None:
+    if not pools:
         print(f"\n '{sport}' sportághoz még nincs edzésterv-generátor.")
         return
 

@@ -4,6 +4,7 @@
 # ==========================================
 from datetime import datetime
 from models.training import Training
+from models.sport import Sport
 from data.sports import choose_sport, ask_sport_details, SPORT_QUESTIONS
 
 from services.generator import generate_training_plan, choose_focus
@@ -16,7 +17,23 @@ from utils.menu import show_menu
 # ADATOK
 # ------------------------------------------
 
-trainings = load_trainings()
+try:
+    trainings = load_trainings()
+except ValueError as error:
+    raise SystemExit(str(error))
+
+sports = [
+    Sport("Muay Thai"),
+    Sport("Futás"),
+    Sport("Kerékpározás"),
+    Sport("Box"),
+    Sport("Úszás"),
+    Sport("Erősítő edzés"),
+]
+
+for training in trainings:
+    if str(training.sport) not in [str(sport) for sport in sports]:
+        sports.append(training.sport)
 
 def get_valid_int(message, min_value=None, max_value=None, allow_empty=False):
     while True:
@@ -44,9 +61,9 @@ def get_valid_int(message, min_value=None, max_value=None, allow_empty=False):
 
 def get_valid_date(message, allow_empty=False):
     while True:
-    
+
         user_input = input(message)
-    
+
         if allow_empty and user_input == "":
             return None
 
@@ -55,10 +72,47 @@ def get_valid_date(message, allow_empty=False):
             return user_input
         except ValueError:
             print("Hibás dátum! A helyes formátum: ÉÉÉÉ.HH.NN")
-                
+
 # ------------------------------------------
 # ÚJ EDZÉS
 # ------------------------------------------
+
+def select_sport():
+    print("\nVálaszz sportágat:\n")
+
+    for number, sport in enumerate(sports, start=1):
+        print(f"{number}. {sport.name}")
+
+    print(f"{len(sports) + 1}. Új sport hozzáadása")
+
+    choice = input("\nVálasztás: ")
+
+    try:
+        choice = int(choice)
+
+    except ValueError:
+        print("\n Számot adj meg!")
+        return None
+
+    if 1 <= choice <= len(sports):
+        return sports[choice - 1]
+    elif choice == len(sports) + 1:
+        new_sport_name = input("\nÚj sport neve: ").strip()
+        if new_sport_name == "":
+            print("\n A sport neve nem lehet üres!")
+            return None
+
+        new_sport = Sport(new_sport_name)
+
+        sports.append(new_sport)
+
+        print(f"\n {new_sport.name} sikeresen hozzáadva!")
+
+        return new_sport
+
+    else:
+        print("\n Érvénytelen választás!")
+        return None
 
 def create_training():
     print("\n")
@@ -66,11 +120,12 @@ def create_training():
     print("ÚJ EDZÉS")
     print("=" * 40)
 
-    sport = choose_sport()
+    sport = select_sport()
+
+    if sport is None:
+        return
 
     date = get_valid_date("Dátum (ÉÉÉÉ.HH.NN): ")
-
-    training_type = input("Edzés típusa: ")
 
     duration = get_valid_int(
         "Időtartam (perc): ",
@@ -90,7 +145,6 @@ def create_training():
     training = Training(
         date,
         sport,
-        training_type,
         duration,
         focus,
         intensity,
@@ -169,7 +223,8 @@ def show_statistics():
 
         (total_intensity) += int(training.intensity)
 
-        sport_counts[training.sport] = sport_counts.get(training.sport, 0) + 1
+        sport_name = str(training.sport)
+        sport_counts[sport_name] = sport_counts.get(sport_name, 0) + 1
 
     average_intensity = (total_intensity / len(trainings))
 
@@ -243,9 +298,13 @@ def edit_training():
     if new_date is not None:
         training.date = new_date
 
-    new_type = input(f"\nEdzés típusa ({training.training_type}): ")
-    if new_type != "":
-        training.training_type = new_type
+    print(f"\nSportág: {training.sport}")
+    if input("Módosítod a sportágat? (i/n, ENTER = nem): ").strip().lower() == "i":
+        new_sport = select_sport()
+        if new_sport is not None and str(new_sport) != str(training.sport):
+            training.sport = new_sport
+            training.details = {}
+            training.focus = choose_focus(new_sport)
 
     new_duration = get_valid_int(
         f"\nIdőtartam ({training.duration}): ",
@@ -271,7 +330,7 @@ def edit_training():
     if new_intensity is not None:
         training.intensity = new_intensity
 
-    questions = SPORT_QUESTIONS.get(training.sport, [])
+    questions = SPORT_QUESTIONS.get(str(training.sport), [])
 
     if len(questions) > 0:
         print(f"\n{training.sport} - egyedi adatok szerkesztése:")
@@ -290,6 +349,13 @@ def edit_training():
 
                 elif question["type"] == float:
                     answer = float(answer.replace(",", "."))
+
+                if question["type"] in (int, float):
+                    import math
+                    if not math.isfinite(answer) or answer < 0:
+                        raise ValueError
+                if key == "sparring" and answer.lower() not in ("i", "n"):
+                    raise ValueError
 
                 training.details[key] = answer
 
@@ -333,7 +399,7 @@ def delete_training():
 # ------------------------------------------
 # PROGRAM
 # ------------------------------------------
- 
+
 while True:
 
     show_menu()
